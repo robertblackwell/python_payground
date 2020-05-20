@@ -3,121 +3,92 @@ import pprint
 import sys
 import ipaddress
 import ip_utils
-    
-# maps a macaddress to an ip address
-class MacAddressMapping:
-    # name
-    # mac_addrress
-    # ip_address
+
+
+# maps a macaddress to an ip address and holds the name
+# of the device for which this mapping pertains
+class MacToIp:
     def __init__(self, a_name, a_mac, an_ip):
         self.name = a_name
         self.mac_address = a_mac
         self.ip_address = an_ip.strip()
-        self.ipaddress_object = None
-        # 
-        # a list of valid network addresses that this ip could belong to
-        # 
-        self.net_addrs = []
 
+# a device name al a list of mac-ip mappings for that device
+class Device:
+    def __init__(self, name, mac_to_ip):
+        self.name = name
+        self.mac_to_ips = [mac_to_ip]
 
-class DeviceMacMappings:
-    # name
-    # mac_mappings an array/list of MacAddressMappings
-    # 
-    def __init__(self, a_name, a_mac_addr_mapping):
-        self.name = a_name
-        self.mac_mappings = [a_mac_addr_mapping]
+    def add(self, mac_to_ip):
+        if self.name != mac_to_ip.name:
+            raise ("trying to add map with name {} to device with name {}".format(mac_to_ip.name, self.name))
+        self.mac_to_ips.append(mac_to_ip)
 
-    def add_mapping(self, a_mac_addr_mapping):
-        self.mac_mappings.append(a_mac_addr_mapping)
-
-
-class Mappings:
-    # 
-    # mappins an array or list of DeviceMacMappings
-    # 
+# a list of devices indexed by device name
+class Devices:
     def __init__(self):
-        self.mappings = {}
+        self.devices = {}
 
     def has_device(self, name):
-        if name in self.mappings:
+        if name in self.devices:
             return True
         else:
             return False
 
     def get_device(self, name):
-        if name in self.mappings:
-            return self.mappings[name]
+        if name in self.devices:
+            return self.devices[name]
         else:
             return None
 
     def add_device(self, device):
-        if device.name in self.mappings:
+        if device.name in self.devices:
             raise "device named {} already in mappings".format(device.name)
-        self.mappings[device.name] = device
+        self.devices[device.name] = device
 
-# if len(sys.argv) != 2:
-#     print("requires exactly one argument - name of csv file")
-#     sys.exit
-# filename = sys.argv[1]    
-    filename = "tmp_csv.csv"
 
-# creates a Mappings instance from an input file
-def build_mappings(filename):
-    all_mappings = Mappings()
+# creates a Devices instance from an input file
+def read_devices(filename):
+    devs = Devices()
     with open(filename, newline='') as csvfile:
-        spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-        for row in spamreader:
+        reader = csv.reader(csvfile, delimiter=',', quotechar='|')
+        for row in reader:
             current_dev_name = row[0]
-            new_mac_mapping = MacAddressMapping(row[0], row[2], row[1])
-            device = all_mappings.get_device(current_dev_name)
+            m_to_ip = MacToIp(row[0], row[2], row[1])
+            device = devs.get_device(current_dev_name)
             if device is None:
-                device = DeviceMacMappings(row[0], new_mac_mapping)
-                all_mappings.add_device(device)
+                device = Device(row[0], m_to_ip)
+                devs.add_device(device)
             else:
-                device.add_mapping(new_mac_mapping)
+                device.add(m_to_ip)
 
-    return all_mappings
+    return devs
 
-def write_mappings(table, file_ext):
-    previous_device_name = "" 
+# for each device in devs: Devices print a file of mac-address to ip mappins
+# the output file for each device is named "device.name"+"."+file_ext
+def write_devices(devs, file_ext):
+    previous_device_name = ""
     outfile = None
-    for dev_name in table.mappings:
-        device = table.mappings[dev_name]
+    for dev_name in devs.devices:
+        device = devs.get_device(dev_name)
+        if device is None:
+            raise("got a name: {} from Devices but then failed to give me device". format(dev_name))
         outfile = open(device.name + "." + file_ext, "w")
-        for map in device.mac_mappings:
+        for m_to_i in device.mac_to_ips:
             outfile.write("Device Name: {} MacAddr: {} ip_address {}\n"
-                .format(map.name, map.mac_address, map.ip_address))
+                          .format(m_to_i.name, m_to_i.mac_address, m_to_i.ip_address))
         outfile.close()
-
-def calculate_possible_network_addresses(table):
-
-    previous_device_name = "" 
-    outfile = None
-    for dev_name in table.mappings:
-        device = table.mappings[dev_name]
-        for map in device.mac_mappings:
-            ip = ip_utils.is_valid_ipaddress(map)
-            net_addrs = ip_utils.find_network_addresses(map.ip_address)
-            map.net_addrs = net_addrs
-            if ip is None:
-                print("device {} mac address: {} has invalid ip addrerss {}"
-                    .format(device.name, device.mac_address, device.ip_address))
 
 
 def main():
-    table = build_mappings("./tmp_csv.csv")
+    devices = read_devices("./tmp_csv.csv")
     # 
-    # in here can do all kings of processing on the data
+    # in here can do all kinds of processing on the data
     # 
-    a = ip_utils.get_subnets(ipaddress.ip_network('192.168.0.0/20'))
-    b = ip_utils.find_all_subnets_containing_host('192.168.0.0/20', 31, '192.168.3.27')
-
-    calculate_possible_network_addresses(table)
+    #
+    # in here can do all kinds of processing on the data
     # 
-    # in here can do all kings of processing on the data
-    # 
-    write_mappings(table, "something")
+    write_devices(devices, "something")
     print("table done")
 
 

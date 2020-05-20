@@ -6,13 +6,15 @@ import ipaddress
 # net_ip IPv/4/6Network
 # stopping_prefix_length integer
 #
-def get_subnets(net_ip, stopping_prefix_length=30):
+def get_subnets(snet_ip, stopping_prefix_length=30):
     subnets = []
-    if net_ip.prefixlen == stopping_prefix_length:
+    if snet_ip.prefixlen == stopping_prefix_length:
         return subnets
-    for sn in net_ip.subnets():
+    for sn in snet_ip.subnets():
         subnets = subnets + [sn] + get_subnets(sn)
     return subnets
+
+
 #
 #  tests if this host_ip is in the network of the net_ip
 # host_ip IPv/4/6Address
@@ -27,6 +29,8 @@ def is_ip_in_network(host_ip, net_ip):
             break
             # print("found {} {}".format(host_ip, net_ip))
     return net_addrs
+
+
 #
 # host_ip a IPv4/6Address representing an ip address of a host
 # net_ip a network ip address as ipaddress.ip_network
@@ -40,20 +44,24 @@ def is_in_net(host_ip, net_ip):
             break
             # print("found {} {}".format(host_ip, net_ip))
     return net_addrs
-# 
+
+
+#
 # filters a list of subnets to return only those
 # that contain the given host_ip
 # @param list(ipaddress.ip_network)  subnets
 # @param integer stopping_prefix_length
 # @param IPv4/6Address host_ip
 # 
-def filter_subnets(subnets, host_ip): 
+def filter_subnets(subnets, host_ip):
     result_subnets = []
     for sn in subnets:
         if is_in_net(host_ip, sn):
             result_subnets.append(sn)
     return result_subnets
-# 
+
+
+#
 # @param string starting_net
 # @param integer stopping_prefix_length
 # @param string host_ip
@@ -66,7 +74,9 @@ def find_all_subnets_containing_host(starting_net, stopping_prefix_length, host_
     subnets += get_subnets(starting_sn, stopping_prefix_length)
     result = filter_subnets(subnets, h_ip);
     return result
-# 
+
+
+#
 # returns an array of valid network addresses
 # that this ip could belong to.
 # 
@@ -91,7 +101,8 @@ def find_network_addresses(ip):
     # print('done')
     return net_addrs
 
-# validate and update the ipaddress_object in a 
+
+# validate and update the ipaddress_object in a
 # MacAddressMapping instance parameter 
 # return the ipaddress.ip_address instance if valid
 # return None is invalid
@@ -105,6 +116,7 @@ def is_valid_ipaddress(mac_mapping):
         return tmp
     except:
         return None
+
 
 if __name__ == "__main__":
     # 
