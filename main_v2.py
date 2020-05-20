@@ -2,9 +2,8 @@ import csv
 import pprint
 import sys
 import ipaddress
-
+import ip_utils
     
-
 # maps a macaddress to an ip address
 class MacAddressMapping:
     # name
@@ -15,20 +14,11 @@ class MacAddressMapping:
         self.mac_address = a_mac
         self.ip_address = an_ip.strip()
         self.ipaddress_object = None
+        # 
+        # a list of valid network addresses that this ip could belong to
+        # 
+        self.net_addrs = []
 
-# validate and update the ipaddress_object in a 
-# MacAddressMapping instance parameter 
-# return the ipaddress.ip_address instance if valid
-# return None is invalid
-def is_valid_ipaddress(mac_mapping):
-    try:
-        tmp = ipaddress.ip_address('192.168.0.2')
-        tmp = ipaddress.ip_address('2001:0db8:85a3:0000:0000:8a2e:0370:7334')
-        tmp = ipaddress.ip_address(mac_mapping.ip_address)
-        mac_mapping.ipaddress_object = tmp
-        return tmp
-    except:
-        return None
 
 class DeviceMacMappings:
     # name
@@ -78,10 +68,8 @@ def build_mappings(filename):
     with open(filename, newline='') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
         for row in spamreader:
-
             current_dev_name = row[0]
             new_mac_mapping = MacAddressMapping(row[0], row[2], row[1])
-
             device = all_mappings.get_device(current_dev_name)
             if device is None:
                 device = DeviceMacMappings(row[0], new_mac_mapping)
@@ -95,7 +83,6 @@ def write_mappings(table, file_ext):
     previous_device_name = "" 
     outfile = None
     for dev_name in table.mappings:
-        print(dev_name)
         device = table.mappings[dev_name]
         outfile = open(device.name + "." + file_ext, "w")
         for map in device.mac_mappings:
@@ -103,14 +90,16 @@ def write_mappings(table, file_ext):
                 .format(map.name, map.mac_address, map.ip_address))
         outfile.close()
 
-def check_ipaddresses(table):
+def calculate_possible_network_addresses(table):
+
     previous_device_name = "" 
     outfile = None
     for dev_name in table.mappings:
-        print(dev_name)
         device = table.mappings[dev_name]
         for map in device.mac_mappings:
-            ip = is_valid_ipaddress(map)
+            ip = ip_utils.is_valid_ipaddress(map)
+            net_addrs = ip_utils.find_network_addresses(map.ip_address)
+            map.net_addrs = net_addrs
             if ip is None:
                 print("device {} mac address: {} has invalid ip addrerss {}"
                     .format(device.name, device.mac_address, device.ip_address))
@@ -121,7 +110,10 @@ def main():
     # 
     # in here can do all kings of processing on the data
     # 
-    check_ipaddresses(table)
+    a = ip_utils.get_subnets(ipaddress.ip_network('192.168.0.0/20'))
+    b = ip_utils.find_all_subnets_containing_host('192.168.0.0/20', 31, '192.168.3.27')
+
+    calculate_possible_network_addresses(table)
     # 
     # in here can do all kings of processing on the data
     # 
