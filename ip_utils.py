@@ -1,13 +1,20 @@
 import pprint
 import ipaddress
+from typing import Union, List
+
+IPAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
+IPNetwork = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+IPString = str
+IPNetworkString = str
+
 
 #
 # get subnets recursive - stops when prefix length gets to stopping_prefix_length
 # net_ip IPv/4/6Network
 # stopping_prefix_length integer
 #
-def get_subnets(snet_ip, stopping_prefix_length=30):
-    subnets = []
+def get_subnets(snet_ip: IPNetwork, stopping_prefix_length: int = 30) -> List[IPNetwork]:
+    subnets: List[IPNetwork] = []
     if snet_ip.prefixlen == stopping_prefix_length:
         return subnets
     for sn in snet_ip.subnets():
@@ -16,34 +23,29 @@ def get_subnets(snet_ip, stopping_prefix_length=30):
 
 
 #
-#  tests if this host_ip is in the network of the net_ip
-# host_ip IPv/4/6Address
-# net_ip IPv/4/6Network
+# tests if this host_ip is in the network of the net_ip
+# host IPv/4/6Address
+# net  IPv/4/6Network
+# return bool
 #
-def is_ip_in_network(host_ip, net_ip):
-    net_addrs = []
-    ip = ipaddress.ip_address(host_ip)
-    for addr in net_ip:
+def is_ip_in_network(host: IPString, net: IPNetwork) -> bool:
+    ip: IPAddress = ipaddress.ip_address(host)
+    for addr in net:
         if ip == addr:
-            net_addrs.append(net_ip)
-            break
-            # print("found {} {}".format(host_ip, net_ip))
-    return net_addrs
+            return True
+    return False
 
 
 #
 # host_ip a IPv4/6Address representing an ip address of a host
 # net_ip a network ip address as ipaddress.ip_network
 #
-def is_in_net(host_ip, net_ip):
-    net_addrs = []
-    ip = host_ip
-    for addr in net_ip:
+def is_in_net(host: IPAddress, net: IPNetwork) -> bool:
+    ip = host
+    for addr in net:
         if ip == addr:
-            net_addrs.append(net_ip)
-            break
-            # print("found {} {}".format(host_ip, net_ip))
-    return net_addrs
+            return True
+    return False
 
 
 #
@@ -53,8 +55,8 @@ def is_in_net(host_ip, net_ip):
 # @param integer stopping_prefix_length
 # @param IPv4/6Address host_ip
 # 
-def filter_subnets(subnets, host_ip):
-    result_subnets = []
+def filter_subnets(subnets: List[IPNetwork], host_ip: IPAddress) -> List[IPNetwork]:
+    result_subnets: List[IPNetwork] = []
     for sn in subnets:
         if is_in_net(host_ip, sn):
             result_subnets.append(sn)
@@ -66,11 +68,15 @@ def filter_subnets(subnets, host_ip):
 # @param integer stopping_prefix_length
 # @param string host_ip
 # 
-def find_all_subnets_containing_host(starting_net, stopping_prefix_length, host_ip):
+def find_all_subnets_containing_host(
+        starting_net: IPNetworkString,
+        stopping_prefix_length: int,
+        host_ip: IPString) -> List[IPNetwork]:
     starting_sn = ipaddress.ip_network(starting_net)
     h_ip = ipaddress.ip_address(host_ip)
-    if is_in_net(starting_sn, h_ip):
-        subnets = [starting_sn];
+    subnets: List[IPNetwork] = []
+    if is_in_net(h_ip, starting_sn):
+        subnets = [starting_sn]
     subnets += get_subnets(starting_sn, stopping_prefix_length)
     result = filter_subnets(subnets, h_ip);
     return result
@@ -118,13 +124,17 @@ def is_valid_ipaddress(mac_mapping):
         return None
 
 
-if __name__ == "__main__":
+def main():
     # 
     # in here can do all kings of processing on the data
     # 
     host_ip = '192.168.3.27'
     net_ip = '192.168.0.0/20'
-    a = get_subnets(ipaddress.ip_network(net_ip))
-    b = find_all_subnets_containing_host(net_ip, 31, host_ip)
+    a: List[IPNetwork] = get_subnets(ipaddress.ip_network(net_ip))
+    b: List[IPNetwork] = find_all_subnets_containing_host(net_ip, 31, host_ip)
     print("here are the subnets of {} that {} could belong to".format(net_ip, host_ip))
     pprint.pprint(b)
+
+
+if __name__ == "__main__":
+    main()
